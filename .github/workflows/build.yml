@@ -1,0 +1,42 @@
+name: Build Brain NAND Backup
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/enlyze/windows-ce-build-environment:latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          arm-mingw32ce-gcc --version | head -n 1
+          arm-mingw32ce-windres --version | head -n 1
+
+      - name: Build (Windows CE / ARM)
+        run: |
+          set -eu
+          mkdir -p out
+          arm-mingw32ce-gcc -std=gnu89 -O2 -Wall -DUNICODE -D_UNICODE \
+            -c src/nanddump.c -o out/nanddump.o
+          arm-mingw32ce-windres -I src src/nanddump.rc -o out/nanddump_res.o
+          arm-mingw32ce-gcc out/nanddump.o out/nanddump_res.o \
+            -o out/nanddump.exe -lcommctrl
+          arm-mingw32ce-objdump -f out/nanddump.exe | head -n 8
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nanddump-arm
+          path: out/nanddump.exe
+          if-no-files-found: error

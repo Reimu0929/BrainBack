@@ -1,0 +1,32 @@
+/* nanddump.rc - Windows CE dialog resource for the Brain NAND backup tool.
+ * NOTE (Brain Wiki "C/C++ de Brain-yo app wo kaihatsu suru"):
+ *   - Use DIALOG, not DIALOGEX, on Windows CE.
+ *   - Keep resource strings ASCII so every resource compiler (eVC4 / CeGCC)
+ *     can handle the file. The UI text is intentionally English.
+ */
+
+#include "resource.h"
+
+IDD_MAIN DIALOG DISCARDABLE 0, 0, 252, 192
+STYLE WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN
+CAPTION "Brain NAND / ROM Backup"
+BEGIN
+    LTEXT "Select NAND block devices to dump (Brain Wiki hardware list):", -1, 7, 7, 238, 10
+    AUTOCHECKBOX "NDF1:  NandBase  (raw NAND base)", IDC_DEV_NDF1, 10, 22, 232, 10
+    AUTOCHECKBOX "DSK6:  NandDic   (dictionary data)", IDC_DEV_DSK6, 10, 35, 232, 10
+    AUTOCHECKBOX "DSK7:  NandExtra (extra data)", IDC_DEV_DSK7, 10, 48, 232, 10
+    AUTOCHECKBOX "DSK8:  NandSystem (OS / system area)", IDC_DEV_DSK8, 10, 61, 232, 10
+    AUTOCHECKBOX "DSK9:  NandUser  (user area)", IDC_DEV_DSK9, 10, 74, 232, 10
+
+    LTEXT "Output folder:", -1, 7, 91, 62, 10
+    EDITTEXT IDC_OUTDIR, 70, 89, 175, 12, ES_AUTOHSCROLL
+    LTEXT "Example: \\Storage Card\\NAND_DUMP  (needs free space)", -1, 7, 104, 238, 10
+
+    CONTROL "", IDC_PROGRESS, "msctls_progress32", PBS_SMOOTH | WS_BORDER, 7, 119, 238, 10
+    LTEXT "Ready.", IDC_STATUS, 7, 133, 238, 19
+
+    DEFPUSHBUTTON "Dump", IDC_DUMP, 7, 161, 57, 16
+    PUSHBUTTON "Cancel", IDC_CANCEL, 69, 161, 57, 16
+    PUSHBUTTON "Select all", IDC_SELECTALL, 131, 161, 57, 16
+    PUSHBUTTON "About", IDC_ABOUT, 193, 161, 52, 16
+END
