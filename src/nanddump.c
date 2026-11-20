@@ -492,7 +492,6 @@ static void StartDump(HWND hDlg)
 
 static BOOL CALLBACK MainDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    HANDLE h;
     int i;
 
     switch (msg) {
@@ -503,16 +502,9 @@ static BOOL CALLBACK MainDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPar
                             MAKELPARAM(0, 100));
         EnableWindow(GetDlgItem(hDlg, IDC_CANCEL), FALSE);
 
-        /* Disable check boxes for devices that are not present. */
-        for (i = 0; i < DEV_COUNT; i++) {
-            h = CreateFileW(g_wszDevNames[i], GENERIC_READ,
-                            FILE_SHARE_READ | FILE_SHARE_WRITE,
-                            NULL, OPEN_EXISTING, 0, NULL);
-            if (h == INVALID_HANDLE_VALUE)
-                EnableWindow(GetDlgItem(hDlg, g_devIds[i]), FALSE);
-            else
-                CloseHandle(h);
-        }
+        /* All devices stay selectable. Some drivers refuse a probe open
+           from a user app, so checking availability here would wrongly
+           disable the check boxes. Open failures are reported at dump time. */
         SetStatus(L"Select devices and press Dump.");
         SetDlgItemTextW(hDlg, IDC_STATUS, g_szStatus);
         return TRUE;
@@ -537,8 +529,7 @@ static BOOL CALLBACK MainDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPar
 
         case IDC_SELECTALL:
             for (i = 0; i < DEV_COUNT; i++)
-                if (IsWindowEnabled(GetDlgItem(hDlg, g_devIds[i])))
-                    CheckDlgButton(hDlg, g_devIds[i], BST_CHECKED);
+                CheckDlgButton(hDlg, g_devIds[i], BST_CHECKED);
             return TRUE;
 
         case IDC_ABOUT:

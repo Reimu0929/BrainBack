@@ -21,7 +21,7 @@ SHARP 製電子辞書 **Brain**（Windows CE）の実機が持つ NAND ブロッ
 | DSK8: | NandSystem | OS / システム領域 | `nandsys.dll` |
 | DSK9: | NandUser | ユーザー領域 | `nanduser.dll` |
 
-起動時に `CreateFile` で存在を確認し、見つからないデバイスのチェックボックスは無効化します。「Select all」で有効なものをまとめて選択できます。
+すべてのチェックボックスが常に選択可能です（起動時の存在チェックは行いません。ドライバによってはユーザーアプリからの `CreateFile` が拒否されるため）。開けないデバイスはダンプ時にステータスへエラー表示されます。「Select all」で全選択できます。
 
 ## ファイル構成
 
