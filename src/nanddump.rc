@@ -22,8 +22,9 @@ BEGIN
     EDITTEXT IDC_OUTDIR, 70, 89, 175, 12, 0x0880
     LTEXT "Fixed: \\Storage Card\\NAND_DUMP  (SD card)", -1, 7, 104, 238, 10
 
-    CONTROL "", IDC_PROGRESS, "msctls_progress32", 0x00800001, 7, 119, 238, 10
-    LTEXT "Ready.", IDC_STATUS, 7, 133, 238, 19
+    LTEXT "Progress:", -1, 7, 117, 60, 10
+    CONTROL "", IDC_PROGRESS, "msctls_progress32", 0x00800001, 7, 129, 238, 10
+    LTEXT "Ready.", IDC_STATUS, 7, 142, 238, 16
 
     DEFPUSHBUTTON "Dump", IDC_DUMP, 7, 161, 57, 16
     PUSHBUTTON "Cancel", IDC_CANCEL, 69, 161, 57, 16

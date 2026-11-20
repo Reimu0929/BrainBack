@@ -117,6 +117,19 @@ static WCHAR         g_szStatus[256];
 /* ------------------------------------------------------------------ */
 /* Small helpers                                                       */
 /* ------------------------------------------------------------------ */
+/* Windows CE may not implement CheckDlgButton/IsDlgButtonChecked in coredll.
+ * Talk directly to the button controls instead. */
+static BOOL IsDeviceChecked(HWND hDlg, int id)
+{
+    return (BOOL)SendDlgItemMessageW(hDlg, id, BM_GETCHECK, 0, 0);
+}
+
+static void SetDeviceChecked(HWND hDlg, int id, BOOL bCheck)
+{
+    SendDlgItemMessageW(hDlg, id, BM_SETCHECK,
+                        bCheck ? BST_CHECKED : BST_UNCHECKED, 0);
+}
+
 static void SetStatus(LPCWSTR s)
 {
     int i;
@@ -446,7 +459,7 @@ static void StartDump(HWND hDlg)
         return;
 
     for (i = 0; i < DEV_COUNT; i++)
-        if (IsDlgButtonChecked(hDlg, g_devIds[i]))
+        if (IsDeviceChecked(hDlg, g_devIds[i]))
             any = TRUE;
     if (!any) {
         MessageBoxW(hDlg, L"Select at least one device.", L"Brain NAND Backup",
@@ -463,7 +476,7 @@ static void StartDump(HWND hDlg)
 
     p->hDlg = hDlg;
     for (i = 0; i < DEV_COUNT; i++)
-        p->bDev[i] = (BOOL)IsDlgButtonChecked(hDlg, g_devIds[i]);
+        p->bDev[i] = IsDeviceChecked(hDlg, g_devIds[i]);
 
     /* Output folder is fixed; the edit box is read-only. */
     GetDlgItemTextW(hDlg, IDC_OUTDIR, p->wszOutDir, MAX_PATH);
@@ -505,6 +518,8 @@ static BOOL CALLBACK MainDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPar
         /* All devices stay selectable. Some drivers refuse a probe open
            from a user app, so checking availability here would wrongly
            disable the check boxes. Open failures are reported at dump time. */
+        for (i = 0; i < DEV_COUNT; i++)
+            SetDeviceChecked(hDlg, g_devIds[i], FALSE);
         SetStatus(L"Select devices and press Dump.");
         SetDlgItemTextW(hDlg, IDC_STATUS, g_szStatus);
         return TRUE;
@@ -529,7 +544,7 @@ static BOOL CALLBACK MainDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPar
 
         case IDC_SELECTALL:
             for (i = 0; i < DEV_COUNT; i++)
-                CheckDlgButton(hDlg, g_devIds[i], BST_CHECKED);
+                SetDeviceChecked(hDlg, g_devIds[i], TRUE);
             return TRUE;
 
         case IDC_ABOUT:
