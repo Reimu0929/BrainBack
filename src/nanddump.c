@@ -290,7 +290,11 @@ static void DumpOneDevice(HWND hDlg, LPCWSTR wszDev, LPCWSTR wszOutDir,
     hdr.dwDataSizeLow    = (DWORD)(total & 0xFFFFFFFFUL);
     hdr.dwDataSizeHigh   = (DWORD)(total >> 32);
     hdr.dwCrc32          = 0;
-    GetSystemTimeAsFileTime(&hdr.ftStartTime);
+    {
+        SYSTEMTIME st;
+        GetSystemTime(&st);
+        SystemTimeToFileTime(&st, &hdr.ftStartTime);
+    }
     WriteFile(hFile, &hdr, sizeof(hdr), &written, NULL);
 
     wsprintfW(g_szStatus, L"%s: dumping...", wszDev);
