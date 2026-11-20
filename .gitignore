@@ -3,3 +3,7 @@
 /artifacts/
 *.o
 *.exe
+
+# Dumped firmware/dictionary images (never commit these)
+/NAND_DUMP/
+*.bin

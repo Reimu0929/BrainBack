@@ -72,6 +72,10 @@ def main():
         crc ^= 0xFFFFFFFF
         print("Computed CRC: %08X" % crc)
 
+        if total == 0:
+            print("RESULT      : NG (empty payload - the dump read no data)")
+            return 1
+
         if remaining != 0:
             print("RESULT      : NG (file truncated: %d bytes missing)" %
                   remaining)

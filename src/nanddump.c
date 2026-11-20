@@ -40,6 +40,25 @@ typedef struct _ND_DISK_INFO {
 #define ND_IOCTL_DISK_GETINFO \
     CTL_CODE(FILE_DEVICE_DISK, 0x700, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
+/* Block devices on Windows CE are read with IOCTL_DISK_READ + SG_REQ,
+ * not with ReadFile. Names/values follow the CE 5.0/6.0 diskio.h. */
+#define ND_IOCTL_DISK_READ \
+    CTL_CODE(FILE_DEVICE_DISK, 0x702, METHOD_BUFFERED, FILE_READ_ACCESS)
+
+typedef struct _ND_SG_BUF {
+    PUCHAR sb_buf;
+    DWORD  sb_len;
+} ND_SG_BUF;
+
+typedef struct _ND_SG_REQ {
+    DWORD sr_start;
+    DWORD sr_num_sec;
+    DWORD sr_num_sg;
+    DWORD sr_status;
+    DWORD sr_callback;          /* function pointer, 4 bytes on CE/ARM */
+    ND_SG_BUF sr_sglist[1];
+} ND_SG_REQ;
+
 /* ------------------------------------------------------------------ */
 /* Compiler-friendly 64-bit unsigned type (C89 has no "long long").    */
 /* ------------------------------------------------------------------ */
@@ -56,7 +75,7 @@ typedef unsigned __int64 DL_UINT64;
 #define WM_DUMP_DONE        (WM_APP + 2)
 
 #define DEV_COUNT           5
-#define DUMP_CHUNK_SECTORS  128          /* 64 KiB at 512 B/sector */
+#define DUMP_CHUNK_SECTORS  16           /* 64 KiB at 4096 B/sector */
 #define DUMP_MAX_BYTES      ((DL_UINT64)64 << 30)  /* safety cap if size unknown */
 #define DUMP_MAGIC          "BRNDMP01"
 #define DUMP_VERSION        1
@@ -111,6 +130,7 @@ typedef struct _GEOM {
 
 static volatile BOOL g_bCancel = FALSE;
 static BOOL          g_bRunning = FALSE;
+static BOOL          g_bAnyFailed = FALSE;
 static HANDLE        g_hThread = NULL;
 static WCHAR         g_szStatus[256];
 
@@ -256,6 +276,9 @@ static void DumpOneDevice(HWND hDlg, LPCWSTR wszDev, LPCWSTR wszOutDir,
     DUMP_HEADER hdr;
     BYTE       *buf = NULL;
     DWORD       bufSize, read, written, crc, i;
+    DWORD       sector, sectorsToRead, bytesToRead, ret, err;
+    BOOL        bIoctl = TRUE, bOk = FALSE;
+    ND_SG_REQ   req;
     DL_UINT64   cur = 0, total;
     WCHAR       path[MAX_PATH], shortName[16], line[256];
     DWORD       mb, mbTotal;
@@ -300,8 +323,11 @@ static void DumpOneDevice(HWND hDlg, LPCWSTR wszDev, LPCWSTR wszOutDir,
     hdr.dwHeaderSize    = (DWORD)sizeof(DUMP_HEADER);
     hdr.dwVersion       = DUMP_VERSION;
     hdr.dwFlags         = 0;
-    for (i = 0; i < 16; i++)
-        hdr.wszDevice[i] = wszDev[i] ? wszDev[i] : 0;
+    for (i = 0; i < 16; i++) {
+        hdr.wszDevice[i] = wszDev[i];
+        if (wszDev[i] == 0)
+            break;
+    }
     hdr.dwBytesPerSector = geom.dwSectorSize;
     hdr.dwTotalSectors   = geom.dwTotalSectors;
     hdr.dwDataSizeLow    = (DWORD)(total & 0xFFFFFFFFUL);
@@ -318,30 +344,59 @@ static void DumpOneDevice(HWND hDlg, LPCWSTR wszDev, LPCWSTR wszOutDir,
     PostMessage(hDlg, WM_DUMP_PROGRESS, 0, 0);
 
     crc = 0xFFFFFFFFUL;
+    sector = 0;
     while (!g_bCancel) {
-        DWORD toRead = bufSize;
-
-        if (geom.bKnown && total != 0) {
-            if (cur >= total)
+        sectorsToRead = DUMP_CHUNK_SECTORS;
+        if (geom.bKnown && geom.dwTotalSectors != 0) {
+            if (sector >= geom.dwTotalSectors)
                 break;
-            if (total - cur < (DL_UINT64)toRead)
-                toRead = (DWORD)(total - cur);
+            if (geom.dwTotalSectors - sector < sectorsToRead)
+                sectorsToRead = geom.dwTotalSectors - sector;
+        }
+        bytesToRead = sectorsToRead * geom.dwSectorSize;
+        if (bytesToRead == 0 || bytesToRead > bufSize)
+            bytesToRead = bufSize;
+
+        read = 0;
+        if (bIoctl) {
+            /* Native CE block-device read. */
+            ZeroMemory(&req, sizeof(req));
+            req.sr_start = sector;
+            req.sr_num_sec = sectorsToRead;
+            req.sr_num_sg = 1;
+            req.sr_sglist[0].sb_buf = buf;
+            req.sr_sglist[0].sb_len = bytesToRead;
+            ret = 0;
+            if (DeviceIoControl(hDev, ND_IOCTL_DISK_READ, &req, sizeof(req),
+                                NULL, 0, &ret, NULL)) {
+                read = req.sr_num_sec * geom.dwSectorSize;
+                if (read > bytesToRead)
+                    read = bytesToRead;
+            } else {
+                err = GetLastError();
+                bIoctl = FALSE;   /* fall back to stream reads from now on */
+            }
         }
 
-        if (!SetPos64(hDev, cur)) {
-            wsprintfW(g_szStatus, L"%s: seek error at %u MB",
-                      wszDev, (DWORD)(cur >> 20));
-            PostMessage(hDlg, WM_DUMP_PROGRESS, 0, 0);
-            break;
-        }
-
-        if (!ReadFile(hDev, buf, toRead, &read, NULL) || read == 0) {
-            if (geom.bKnown)
-                wsprintfW(g_szStatus, L"%s: read stopped at %u MB (error %u)",
+        if (!bIoctl) {
+            /* Some drivers also expose a stream interface. */
+            if (!SetPos64(hDev, cur)) {
+                wsprintfW(g_szStatus, L"%s: seek error at %u MB (err %u)",
                           wszDev, (DWORD)(cur >> 20), GetLastError());
-            else
-                wsprintfW(g_szStatus, L"%s: end of device at %u MB",
-                          wszDev, (DWORD)(cur >> 20));
+                PostMessage(hDlg, WM_DUMP_PROGRESS, 0, 0);
+                break;
+            }
+            if (!ReadFile(hDev, buf, bytesToRead, &read, NULL) || read == 0) {
+                wsprintfW(g_szStatus,
+                          L"%s: read error at %u MB (ioctl=%u read=%u)",
+                          wszDev, (DWORD)(cur >> 20), err, GetLastError());
+                PostMessage(hDlg, WM_DUMP_PROGRESS, 0, 0);
+                break;
+            }
+        }
+
+        if (read == 0) {
+            wsprintfW(g_szStatus, L"%s: no data at sector %u", wszDev, sector);
             PostMessage(hDlg, WM_DUMP_PROGRESS, 0, 0);
             break;
         }
@@ -355,6 +410,7 @@ static void DumpOneDevice(HWND hDlg, LPCWSTR wszDev, LPCWSTR wszOutDir,
 
         crc = UpdateCrc(crc, buf, read);
         cur += read;
+        sector += read / geom.dwSectorSize;
 
         mb      = (DWORD)(cur >> 20);
         mbTotal = (DWORD)(total >> 20);
@@ -377,6 +433,9 @@ static void DumpOneDevice(HWND hDlg, LPCWSTR wszDev, LPCWSTR wszOutDir,
             break;
         }
     }
+    bOk = (cur > 0);
+    if (!bOk)
+        g_bAnyFailed = TRUE;
 
     crc ^= 0xFFFFFFFFUL;
     if (SetPos64(hFile, (DL_UINT64)offsetof(DUMP_HEADER, dwCrc32)))
@@ -392,16 +451,20 @@ static void DumpOneDevice(HWND hDlg, LPCWSTR wszDev, LPCWSTR wszOutDir,
         WriteFile(hFile, &hi, sizeof(hi), &written, NULL);
     }
 
-    wsprintfW(line, L"%s  size=%u MB  sectors=%u  sector=%u B  CRC=%08X  file=%s.bin\r\n",
+    wsprintfW(line, L"%s  size=%u MB  sectors=%u  sector=%u B  CRC=%08X  %s  file=%s.bin\r\n",
               wszDev, (DWORD)(cur >> 20), geom.dwTotalSectors,
-              geom.dwSectorSize, crc, shortName);
+              geom.dwSectorSize, crc, bOk ? L"OK" : L"FAILED", shortName);
     if (hManifest != INVALID_HANDLE_VALUE)
         WriteFile(hManifest, line, lstrlenW(line) * sizeof(WCHAR),
                   &written, NULL);
 
-    wsprintfW(g_szStatus, L"%s: done (%u MB, CRC=%08X)",
-              wszDev, (DWORD)(cur >> 20), crc);
-    PostMessage(hDlg, WM_DUMP_PROGRESS, 100, 0);
+    if (bOk)
+        wsprintfW(g_szStatus, L"%s: done (%u MB, CRC=%08X)",
+                  wszDev, (DWORD)(cur >> 20), crc);
+    else
+        wsprintfW(g_szStatus, L"%s: FAILED - 0 bytes read (see status)",
+                  wszDev);
+    PostMessage(hDlg, WM_DUMP_PROGRESS, bOk ? 100 : 0, 0);
 
     LocalFree(buf);
     CloseHandle(hFile);
@@ -438,6 +501,8 @@ static DWORD WINAPI DumpThread(LPVOID lpParam)
 
     if (g_bCancel)
         SetStatus(L"Cancelled.");
+    else if (g_bAnyFailed)
+        SetStatus(L"Finished WITH ERRORS - check status/manifest.txt");
     else
         SetStatus(L"Finished. Check manifest.txt for CRCs.");
 
@@ -485,6 +550,7 @@ static void StartDump(HWND hDlg)
     CreateDirectoryW(p->wszOutDir, NULL);
 
     g_bCancel = FALSE;
+    g_bAnyFailed = FALSE;
     g_bRunning = TRUE;
     EnableWindow(GetDlgItem(hDlg, IDC_DUMP), FALSE);
     EnableWindow(GetDlgItem(hDlg, IDC_SELECTALL), FALSE);
