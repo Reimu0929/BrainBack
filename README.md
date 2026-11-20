@@ -54,7 +54,7 @@ Wiki の [開発環境・SDK](https://brain.fandom.com/ja/wiki/%E9%96%8B%E7%99%B
 ### GitHub Actions (CeGCC / arm-mingw32ce)
 
 `.github/workflows/build.yml` により、push / PR / 手動実行で ARM 用 `nanddump.exe` をビルドします。
-ビルド環境には公開 Docker イメージ `ghcr.io/enlyze/windows-ce-build-environment`（CeGCC 9.3.0, `arm-mingw32ce`）を使用するため、Windows CE SDK のインストールは不要です。成果物は Artifacts にアップロードされます。
+ビルド環境には公開 Docker イメージ `ghcr.io/enlyze/windows-ce-build-environment-arm:latest`（CeGCC 9.3.0, `arm-mingw32ce`）を使用するため、Windows CE SDK のインストールは不要です。成果物は Artifacts にアップロードされます。
 
 ローカルで同じビルドを再現する場合:
 

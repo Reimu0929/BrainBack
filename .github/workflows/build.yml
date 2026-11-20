@@ -12,7 +12,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/enlyze/windows-ce-build-environment:latest
+      image: ghcr.io/enlyze/windows-ce-build-environment-arm:latest
 
     steps:
       - name: Checkout
