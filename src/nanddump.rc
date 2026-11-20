@@ -19,8 +19,8 @@ BEGIN
     AUTOCHECKBOX "DSK9:  NandUser  (user area)", IDC_DEV_DSK9, 10, 74, 232, 10
 
     LTEXT "Output folder:", -1, 7, 91, 62, 10
-    EDITTEXT IDC_OUTDIR, 70, 89, 175, 12, 128
-    LTEXT "Example: \\Storage Card\\NAND_DUMP  (needs free space)", -1, 7, 104, 238, 10
+    EDITTEXT IDC_OUTDIR, 70, 89, 175, 12, 0x0880
+    LTEXT "Fixed: \\Storage Card\\NAND_DUMP  (SD card)", -1, 7, 104, 238, 10
 
     CONTROL "", IDC_PROGRESS, "msctls_progress32", 0x00800001, 7, 119, 238, 10
     LTEXT "Ready.", IDC_STATUS, 7, 133, 238, 19

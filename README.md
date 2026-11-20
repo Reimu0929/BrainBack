@@ -70,7 +70,7 @@ arm-mingw32ce-gcc nanddump.o nanddump_res.o -o nanddump.exe -lcommctrl
 
 1. ビルドした `nanddump.exe` を実機にコピーして起動する。
 2. ダンプしたいデバイスをチェックする（通常は `DSK8:` と `DSK6:` など）。
-3. **Output folder** に十分な空き容量のあるフォルダを指定する（例: `\Storage Card\NAND_DUMP`）。
+3. 出力先は **`\Storage Card\NAND_DUMP`** に固定（読み取り専用表示）。SD カードが `Storage Card` としてマウントされているため、スペースを含むパスを入力する必要はありません。フォルダは自動作成されます。
 4. **Dump** を押す。進捗バーとステータスが更新される。**Cancel** で中断可能。
 5. 完了後、指定フォルダに以下が生成される:
    - `<デバイス名>.bin` … 生データ + ヘッダ (例: `DSK8.bin`)

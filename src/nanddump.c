@@ -61,6 +61,10 @@ typedef unsigned __int64 DL_UINT64;
 #define DUMP_MAGIC          "BRNDMP01"
 #define DUMP_VERSION        1
 
+/* The SD card is mounted as "\Storage Card" on this device. The output
+ * folder is fixed so the user never has to type a space into the dialog. */
+#define DUMP_OUTPUT_DIR     L"\\Storage Card\\NAND_DUMP"
+
 /* ------------------------------------------------------------------ */
 /* On-disk image header (little-endian, packed).                       */
 /* ------------------------------------------------------------------ */
@@ -461,9 +465,10 @@ static void StartDump(HWND hDlg)
     for (i = 0; i < DEV_COUNT; i++)
         p->bDev[i] = (BOOL)IsDlgButtonChecked(hDlg, g_devIds[i]);
 
+    /* Output folder is fixed; the edit box is read-only. */
     GetDlgItemTextW(hDlg, IDC_OUTDIR, p->wszOutDir, MAX_PATH);
     if (p->wszOutDir[0] == L'\0')
-        wsprintfW(p->wszOutDir, L"\\NAND_DUMP");
+        wsprintfW(p->wszOutDir, DUMP_OUTPUT_DIR);
     CreateDirectoryW(p->wszOutDir, NULL);
 
     g_bCancel = FALSE;
@@ -492,7 +497,8 @@ static BOOL CALLBACK MainDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPar
 
     switch (msg) {
     case WM_INITDIALOG:
-        SetDlgItemTextW(hDlg, IDC_OUTDIR, L"\\NAND_DUMP");
+        SetDlgItemTextW(hDlg, IDC_OUTDIR, DUMP_OUTPUT_DIR);
+        SendDlgItemMessageW(hDlg, IDC_OUTDIR, EM_SETREADONLY, TRUE, 0);
         SendDlgItemMessageW(hDlg, IDC_PROGRESS, PBM_SETRANGE, 0,
                             MAKELPARAM(0, 100));
         EnableWindow(GetDlgItem(hDlg, IDC_CANCEL), FALSE);
