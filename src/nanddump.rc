@@ -7,8 +7,8 @@
 
 #include "resource.h"
 
-IDD_MAIN DIALOG DISCARDABLE 0, 0, 252, 192
-STYLE WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN
+IDD_MAIN DIALOG 0, 0, 252, 192
+STYLE 0x82C80000
 CAPTION "Brain NAND / ROM Backup"
 BEGIN
     LTEXT "Select NAND block devices to dump (Brain Wiki hardware list):", -1, 7, 7, 238, 10
@@ -22,7 +22,7 @@ BEGIN
     EDITTEXT IDC_OUTDIR, 70, 89, 175, 12, ES_AUTOHSCROLL
     LTEXT "Example: \\Storage Card\\NAND_DUMP  (needs free space)", -1, 7, 104, 238, 10
 
-    CONTROL "", IDC_PROGRESS, "msctls_progress32", PBS_SMOOTH | WS_BORDER, 7, 119, 238, 10
+    CONTROL "", IDC_PROGRESS, "msctls_progress32", 0x00800001, 7, 119, 238, 10
     LTEXT "Ready.", IDC_STATUS, 7, 133, 238, 19
 
     DEFPUSHBUTTON "Dump", IDC_DUMP, 7, 161, 57, 16
