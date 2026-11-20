@@ -1,0 +1,5 @@
+# Build outputs
+/out/
+/artifacts/
+*.o
+*.exe
