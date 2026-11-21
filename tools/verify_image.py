@@ -53,7 +53,9 @@ def main():
               (total, total / 1048576.0))
         print("Stored CRC  : %08X" % crc_stored)
 
-        crc = 0xFFFFFFFF
+        # zlib.crc32 performs the init (0xFFFFFFFF) and final XOR itself.
+        # Chaining with a seed of 0 is correct; do not pre/post invert here.
+        crc = 0
         remaining = total
         out = open(args.extract, "wb") if args.extract else None
         try:
@@ -69,7 +71,6 @@ def main():
             if out:
                 out.close()
 
-        crc ^= 0xFFFFFFFF
         print("Computed CRC: %08X" % crc)
 
         if total == 0:
